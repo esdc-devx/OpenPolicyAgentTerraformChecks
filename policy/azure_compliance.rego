@@ -28,17 +28,34 @@ names_that_match_prefix[i] = resources {
     ]
 }
 
-resources_groups[i] = resources { 
+resources_groups_have_proper_suffix[i] = resources { 
     changeset := input.resource_changes[i]
-    resources := [resource | 
-        resource := module_address[i]
+    resources := [
+        resource | 
+        resource := module_address[i];
         changeset.type == "azurerm_resource_group" 
         not data.name_validation.has_resource_group_suffix(changeset.change.after.name)
     ]
 }
 
+only_development_environments_allow[i] = resources { 
+    changeset := input.resource_changes[i]
+    resources := [
+        resource | 
+        resource := module_address[i];
+        changeset.type == "azurerm_resource_group" 
+        changeset.change.after.tags["Environment"] != "Development"
+    ]
+}
+
 deny[msg] { 
-    resources := resources_groups[_] 
+    resources := only_development_environments_allow[_]
+    resources != []
+    msg := sprintf("Only development environments allowed: %v",[resources])
+}
+
+deny[msg] { 
+    resources := resources_groups_have_proper_suffix[_] 
     resources != []
     msg := sprintf("Invalid resource group suffix for the following: %v",[resources])
 }
@@ -52,6 +69,6 @@ deny[msg] {
 deny[msg] { 
     resources := names_that_match_prefix[_]
     resources != []
-    msg := sprintf("Missing EsDC Prefix: %v", [resources])
+    msg := sprintf("Invalid name Prefix (should be EsDC): %v", [resources])
 }
 
