@@ -6,7 +6,7 @@ minimum_tags = {
     "Project",
     "Directorate",
     "Environment",
-    "ServiceOwner",
+    "ServiceOwner"
     }
 
 
