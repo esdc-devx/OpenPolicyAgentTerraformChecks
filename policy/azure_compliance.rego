@@ -2,15 +2,15 @@ package main
 
 import data.tags_validation
 import data.name_validation 
-
-module_address[i] = address {
+changeset[i] = changeset { 
     changeset := input.resource_changes[i]
-    address := changeset.address
+}
+module_address[i] = address {
+    address := changeset[i].address
 }
 
 tags_contain_minimum_set[i] = resources {
-    changeset := input.resource_changes[i]
-    tags := changeset.change.after.tags
+    tags := changeset[i].change.after.tags
     resources := [ 
         resource | 
         resource := module_address[i];
@@ -18,9 +18,8 @@ tags_contain_minimum_set[i] = resources {
     ]
 }
 
-names_that_match_prefix[i] = resources {
-    changeset := input.resource_changes[i]
-    names := changeset.change.after.name
+names_with_invalid_prefix[i] = resources {
+    names := changeset[i].change.after.name
     resources := [
         resource | 
         resource := module_address[i];
@@ -28,45 +27,47 @@ names_that_match_prefix[i] = resources {
     ]
 }
 
-resources_groups_have_proper_suffix[i] = resources { 
-    changeset := input.resource_changes[i]
+resource_groups_with_invalid_suffix[i] = resources {
+    type := changeset[i].type
     resources := [
         resource | 
         resource := module_address[i];
-        changeset.type == "azurerm_resource_group" 
-        not data.name_validation.has_resource_group_suffix(changeset.change.after.name)
+        type == "azurerm_resource_group" 
+        not data.name_validation.has_resource_group_suffix(changeset[i].change.after.name)
     ]
 }
 
-only_development_environments_allow[i] = resources { 
-    changeset := input.resource_changes[i]
+environments_other_than_development[i] = resources { 
+    environment := changeset[i].change.after.tags["Environment"]
     resources := [
         resource | 
         resource := module_address[i];
-        changeset.type == "azurerm_resource_group" 
-        changeset.change.after.tags["Environment"] != "Development"
+        environment != "Development"
+    ]
+}
+
+outside_canada = resources { 
+    resources := [
+        resource | 
+        not re_match("^(canadaeast|canadacentral)$", changeset[i].change.after.location)
+        resource := module_address[i]
     ]
 }
 
 deny[msg] { 
-    changeset := input.resource_changes[i]
-    resources := [
-        resource | 
-        not re_match("^(canadaeast|canadacentral)$", changeset.change.after.location)
-        resource := module_address[i]
-    ]
+    resources := outside_canada[_]
     resources != []
     msg := sprintf("Invalid resource location only Canada is allowed: %v",[resources])
 }
 
 deny[msg] { 
-    resources := only_development_environments_allow[_]
+    resources := environments_other_than_development[_]
     resources != []
     msg := sprintf("Only development environments allowed: %v",[resources])
 }
 
 deny[msg] { 
-    resources := resources_groups_have_proper_suffix[_] 
+    resources := resource_groups_with_invalid_suffix[_] 
     resources != []
     msg := sprintf("Invalid resource group suffix for the following: %v",[resources])
 }
@@ -77,8 +78,8 @@ deny[msg] {
     msg := sprintf("Invalid tags (missing minimum required tags) for the following resources: %v", [resources])
 }
 
-deny[msg] { 
-    resources := names_that_match_prefix[_]
+deny[msg] {
+    resources := names_with_invalid_prefix[_]
     resources != []
     msg := sprintf("Invalid name Prefix (should be EsDC): %v", [resources])
 }
