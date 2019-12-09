@@ -49,6 +49,17 @@ only_development_environments_allow[i] = resources {
 }
 
 deny[msg] { 
+    changeset := input.resource_changes[i]
+    resources := [
+        resource | 
+        not re_match("^(canadaeast|canadacentral)$", changeset.change.after.location)
+        resource := module_address[i]
+    ]
+    resources != []
+    msg := sprintf("Invalid resource location only Canada is allowed: %v",[resources])
+}
+
+deny[msg] { 
     resources := only_development_environments_allow[_]
     resources != []
     msg := sprintf("Only development environments allowed: %v",[resources])
