@@ -1,7 +1,33 @@
 package main 
 
-import data.tags_validation
-import data.name_validation 
+minimum_tags = {
+    "Branch",
+    "Classification",
+    "Project",
+    "Directorate",
+    "Environment",
+    "ServiceOwner"
+    }
+
+
+tags_contain_proper_keys(tags) {
+    keys := {key | tags[key]}
+    leftover := minimum_tags - keys
+    leftover == set()
+}
+
+has_esdc_prefix(name) { 
+    re_match("^EsDC[A-Za-z]*",name)
+}
+
+has_resource_group_suffix(name) { 
+    re_match("[A-Za-z]*rg$",name)
+}
+
+in_canada(location) { 
+    re_match("^(canadaeast|canadacentral)$",location)
+}
+
 changeset[i] = changeset { 
     changeset := input.resource_changes[i]
 }
@@ -14,7 +40,7 @@ tags_contain_minimum_set[i] = resources {
     resources := [ 
         resource | 
         resource := module_address[i];
-        not tags_validation.tags_contain_proper_keys(tags)
+        not tags_contain_proper_keys(tags)
     ]
 }
 
@@ -23,7 +49,7 @@ names_with_invalid_prefix[i] = resources {
     resources := [
         resource | 
         resource := module_address[i];
-        not data.name_validation.has_esdc_prefix(names)
+        not has_esdc_prefix(names)
     ]
 }
 
@@ -33,7 +59,7 @@ resource_groups_with_invalid_suffix[i] = resources {
         resource | 
         resource := module_address[i];
         type == "azurerm_resource_group" 
-        not data.name_validation.has_resource_group_suffix(changeset[i].change.after.name)
+        not has_resource_group_suffix(changeset[i].change.after.name)
     ]
 }
 
@@ -49,7 +75,7 @@ environments_other_than_development[i] = resources {
 outside_canada = resources { 
     resources := [
         resource | 
-        not re_match("^(canadaeast|canadacentral)$", changeset[i].change.after.location)
+        not in_canada(changeset[i].change.after.location)
         resource := module_address[i]
     ]
 }
