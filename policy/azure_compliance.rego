@@ -40,7 +40,7 @@ resources_groups[i] = resources {
 deny[msg] { 
     resources := resources_groups[_] 
     resources != []
-    msg := sprintf("Invalid resource group suffix for the following: %v",resources)
+    msg := sprintf("Invalid resource group suffix for the following: %v",[resources])
 }
 
 deny[msg] {
